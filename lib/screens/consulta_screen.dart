@@ -138,21 +138,19 @@ class _ConsultaScreenState extends ConsumerState<ConsultaScreen> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, st) => Center(child: Text('Error: $err')),
             data: (nino) {
-              if (nino == null) return const SizedBox.shrink();
+  if (nino == null) return const SizedBox.shrink();
 
-              return Padding(
-                padding: const EdgeInsets.all(16),
-                child: NinoCard(
-                  id: nino['id_nino'] as String,
-                  nombre: nino['nombre'] as String,
-                  puntosActuales: nino['puntos'] as int,
-                  nfcUid: nino['nfc_uid'] as String?,
-                  fechaCreacion: nino['fecha_creacion'] != null
-                      ? DateTime.parse(nino['fecha_creacion'] as String)
-                      : null,
-                ),
-              );
-            },
+  return Padding(
+    padding: const EdgeInsets.all(16),
+    child: NinoCard(
+      id: nino['id_nino'] as String,
+      nombre: nino['nombre'] as String,
+      puntosActuales: nino['puntos_actuales'] as int, // CAMBIADO: Antes era 'puntos'
+      nfcUid: nino['nfc_uid'] as String?,
+      //...
+    ),
+  );
+},
           ),
 
           // Saldo actual

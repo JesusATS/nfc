@@ -26,16 +26,16 @@ class HistorialService {
   }
 
   /// Obtener historial de todos los niños del educador
+  // En tu método getAll() línea 29
   Future<List<Map<String, dynamic>>> getAll() async {
     try {
       final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        throw app_exceptions.AuthException(message: 'Usuario no autenticado');
-      }
+      if (userId == null) throw app_exceptions.AuthException(message: 'Usuario no autenticado');
 
       final response = await _supabase
           .from('historial')
-          .select('*, ninos(id_nino, nombre, puntos)')
+          // CAMBIADO: 'puntos' a 'puntos_actuales'
+          .select('*, ninos(id_nino, nombre, puntos_actuales)') 
           .eq('ninos.id_educador', userId)
           .order('fecha', ascending: false);
 

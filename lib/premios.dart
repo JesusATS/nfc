@@ -8,6 +8,7 @@ import 'widgets/common/app_dialogs.dart';
 import 'package:nfc/widgets/common/loading_overlay.dart';
 import 'package:nfc/widgets/nfc/nfc_reader_dialog.dart';
 import 'exceptions/app_exception.dart';
+import 'providers/historial_provider.dart';
 
 /// Pantalla para canjear premios
 class PremiosScreen extends ConsumerWidget {
@@ -70,7 +71,7 @@ class PremiosScreen extends ConsumerWidget {
               return PremioCard(
                 id: premio['id_premio'] as String,
                 titulo: premio['titulo'] as String,
-                costoPuntos: premio['costo_puntos'] as int,
+                costoPuntos: premio['puntos_costo'] as int,
                 icono: premio['icono'] as String? ?? '🎁',
                 onTap: () => _canjearPremio(context, ref, premio),
               );
@@ -87,60 +88,52 @@ class PremiosScreen extends ConsumerWidget {
     Map<String, dynamic> premio,
   ) {
     NFCReaderDialog.show(
-      context,
-      title: 'Canjear Premio',
-      message:
-          'Acerca la tarjeta del niño para cobrar ${premio['costo_puntos']} puntos...',
-      onCardRead: (nfcUid) async {
-        try {
-          // 1. Buscar niño por NFC
-          final ninoAsync = await ref.read(ninoByNfcProvider(nfcUid).future);
+  context,
+  title: 'Canjear Premio',
+  message: 'Acerca la tarjeta del niño para cobrar ${premio['puntos_costo']} puntos...', // CAMBIADO
+  onCardRead: (nfcUid) async {
+    try {
+      final ninoAsync = await ref.read(ninoByNfcProvider(nfcUid).future);
+      // ...
+      
+      final tieneSaldo = await ref.read(
+        validarSaldoProvider((
+          ninoAsync!['id_nino'] as String,
+          premio['puntos_costo'] as int, // CAMBIADO
+        )).future,
+      );
 
-          if (ninoAsync == null) {
-            if (context.mounted) {
-              ErrorDialog.show(
-                context,
-                message: 'Tarjeta no registrada',
-                onRetry: () => _canjearPremio(context, ref, premio),
-              );
-            }
-            return;
-          }
-
-          // 2. Validar saldo
-          final tieneSaldo = await ref.read(
-            validarSaldoProvider((
-              ninoAsync['id_nino'] as String,
-              premio['costo_puntos'] as int,
-            )).future,
+      if (!tieneSaldo) {
+        if (context.mounted) {
+          final saldoActual = (ninoAsync!['puntos_actuales'] as int? ?? 0); // CAMBIADO
+          final falta = (premio['puntos_costo'] as int) - saldoActual; // CAMBIADO
+          ErrorDialog.show(
+            context,
+            message: '❌ Saldo insuficiente\n${ninoAsync['nombre']} tiene $saldoActual pts\nLe faltan $falta pts',
+            onRetry: () => _canjearPremio(context, ref, premio),
           );
+        }
+        return;
+      }
 
-          if (!tieneSaldo) {
-            if (context.mounted) {
-              final saldoActual = (ninoAsync['puntos'] as int? ?? 0);
-              final falta = (premio['costo_puntos'] as int) - saldoActual;
-              ErrorDialog.show(
-                context,
-                message:
-                    '❌ Saldo insuficiente\n${ninoAsync['nombre']} tiene $saldoActual pts\nLe faltan $falta pts',
-                onRetry: () => _canjearPremio(context, ref, premio),
-              );
-            }
-            return;
-          }
-
-          // 3. Restar puntos
+      // 3. Restar puntos
+      // 3. Restar puntos usando el servicio directamente
           if (context.mounted) {
             LoadingDialog.show(context);
           }
 
-          final nuevoSaldo = await ref.read(
-            restarPuntosProvider((
-              ninoAsync['id_nino'] as String,
-              premio['costo_puntos'] as int,
-              'Canje: ${premio['titulo']}',
-            )).future,
+          final puntosService = ref.read(puntosServiceProvider);
+          final idNino = ninoAsync!['id_nino'] as String;
+
+          final nuevoSaldo = await puntosService.restarPuntos(
+            idNino,
+            premio['puntos_costo'] as int,
+            'Canje: ${premio['titulo']}',
           );
+
+          // Refrescamos los proveedores de lectura
+          ref.invalidate(saldoNinoProvider(idNino));
+          ref.invalidate(historialRecientesProvider((idNino, 5)));
 
           if (context.mounted) {
             Navigator.pop(context); // Cerrar loading

@@ -12,11 +12,11 @@ class PuntosService {
     try {
       final response = await _supabase
           .from('ninos')
-          .select('puntos')
+          .select('puntos_actuales') // CAMBIADO: antes era 'puntos'
           .eq('id_nino', idNino)
           .single();
 
-      return response['puntos'] as int;
+      return response['puntos_actuales'] as int; // CAMBIADO
     } catch (e) {
       throw DatabaseException(
         message: 'Error al obtener saldo: ${e.toString()}',
@@ -29,20 +29,16 @@ class PuntosService {
   Future<int> sumarPuntos(String idNino, int cantidad, String motivo) async {
     try {
       _validateCantidad(cantidad);
-
-      // 1. Obtener saldo actual
       final saldoActual = await getSaldo(idNino);
-
-      // 2. Calcular nuevo saldo
       final nuevoSaldo = saldoActual + cantidad;
 
-      // 3. Actualizar saldo
+      // Actualizar saldo
       await _supabase
           .from('ninos')
-          .update({'puntos': nuevoSaldo})
+          .update({'puntos_actuales': nuevoSaldo}) // CAMBIADO
           .eq('id_nino', idNino);
 
-      // 4. Registrar en historial
+      // Registrar en historial
       await _supabase.from('historial').insert({
         'id_nino': idNino,
         'tipo': 'ingreso',
@@ -68,11 +64,8 @@ class PuntosService {
   Future<int> restarPuntos(String idNino, int cantidad, String motivo) async {
     try {
       _validateCantidad(cantidad);
-
-      // 1. Obtener saldo actual
       final saldoActual = await getSaldo(idNino);
 
-      // 2. Validar que haya saldo suficiente
       if (saldoActual < cantidad) {
         throw BusinessException(
           message:
@@ -80,16 +73,15 @@ class PuntosService {
         );
       }
 
-      // 3. Calcular nuevo saldo
       final nuevoSaldo = saldoActual - cantidad;
 
-      // 4. Actualizar saldo
+      // Actualizar saldo
       await _supabase
           .from('ninos')
-          .update({'puntos': nuevoSaldo})
+          .update({'puntos_actuales': nuevoSaldo}) // CAMBIADO
           .eq('id_nino', idNino);
 
-      // 5. Registrar en historial
+      // Registrar en historial
       await _supabase.from('historial').insert({
         'id_nino': idNino,
         'tipo': 'gasto',
@@ -113,7 +105,6 @@ class PuntosService {
     }
   }
 
-  /// Validar que haya saldo suficiente para un canje
   Future<bool> validarSaldo(String idNino, int cantidadRequerida) async {
     try {
       final saldo = await getSaldo(idNino);
@@ -126,19 +117,12 @@ class PuntosService {
     }
   }
 
-  /// Validar cantidad
   void _validateCantidad(int cantidad) {
     if (cantidad <= 0) {
-      throw ValidationException(
-        message: 'La cantidad debe ser mayor que 0',
-        field: 'cantidad',
-      );
+      throw ValidationException(message: 'La cantidad debe ser mayor que 0', field: 'cantidad');
     }
     if (cantidad > 10000) {
-      throw ValidationException(
-        message: 'La cantidad no puede ser mayor que 10000',
-        field: 'cantidad',
-      );
+      throw ValidationException(message: 'La cantidad no puede ser mayor que 10000', field: 'cantidad');
     }
   }
 }

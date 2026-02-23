@@ -8,6 +8,7 @@ import 'widgets/common/app_dialogs.dart';
 import 'package:nfc/widgets/common/loading_overlay.dart';
 import 'package:nfc/widgets/nfc/nfc_reader_dialog.dart';
 import 'exceptions/app_exception.dart';
+import 'providers/historial_provider.dart';
 
 /// Pantalla para asignar tareas y dar puntos
 class TareasScreen extends ConsumerWidget {
@@ -100,17 +101,23 @@ class TareasScreen extends ConsumerWidget {
           }
 
           // 2. Sumar puntos
+          // 2. Sumar puntos usando el servicio directamente
           if (context.mounted) {
             LoadingDialog.show(context);
           }
 
-          final nuevoSaldo = await ref.read(
-            sumarPuntosProvider((
-              ninoAsync['id_nino'] as String,
-              tarea['puntos_ganados'] as int,
-              'Tarea: ${tarea['titulo']}',
-            )).future,
+          final puntosService = ref.read(puntosServiceProvider);
+          final idNino = ninoAsync!['id_nino'] as String;
+
+          final nuevoSaldo = await puntosService.sumarPuntos(
+            idNino,
+            tarea['puntos_ganados'] as int,
+            'Tarea: ${tarea['titulo']}',
           );
+
+          // Refrescamos los proveedores de lectura para que la UI se actualice
+          ref.invalidate(saldoNinoProvider(idNino));
+          ref.invalidate(historialRecientesProvider((idNino, 5)));
 
           if (context.mounted) {
             Navigator.pop(context); // Cerrar loading

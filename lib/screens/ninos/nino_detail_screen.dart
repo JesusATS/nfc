@@ -35,7 +35,8 @@ class NinoDetailScreen extends ConsumerWidget {
                     subtitle: Text(
                       'NFC: ${nino['nfc_uid'] as String? ?? 'No asignado'}',
                     ),
-                    trailing: Text('${nino['puntos_actuales'] as int} puntos'),
+                    // CORREGIDO: Ahora usa puntos_actuales
+                    trailing: Text('${nino['puntos_actuales'] as int? ?? 0} puntos'),
                   ),
                   const Divider(),
                   Expanded(
@@ -50,15 +51,22 @@ class NinoDetailScreen extends ConsumerWidget {
                           itemCount: historial.length,
                           itemBuilder: (context, index) {
                             final item = historial[index];
-                            final isSuma =
-                                (item['puntos_ganados'] as int? ?? 0) > 0;
+                            // CORREGIDO: Evaluamos la columna 'tipo' y 'cantidad'
+                            final isSuma = item['tipo'] == 'ingreso';
+                            final cantidad = item['cantidad'] as int? ?? 0;
+                            
                             return ListTile(
                               leading: isSuma
-                                  ? const Icon(Icons.add, color: Colors.green)
-                                  : const Icon(Icons.remove, color: Colors.red),
-                              title: Text(item['descripcion'] as String),
+                                  ? const Icon(Icons.add_circle, color: Colors.green)
+                                  : const Icon(Icons.remove_circle, color: Colors.red),
+                              // CORREGIDO: Evaluamos la columna 'motivo'
+                              title: Text(item['motivo'] as String? ?? 'Movimiento'),
                               trailing: Text(
-                                '${isSuma ? '+' : ''}${item['puntos_ganados'] as int? ?? item['puntos_gastados'] as int? ?? 0} puntos',
+                                '${isSuma ? '+' : '-'}$cantidad puntos',
+                                style: TextStyle(
+                                  color: isSuma ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold
+                                ),
                               ),
                             );
                           },
